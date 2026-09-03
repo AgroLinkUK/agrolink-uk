@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AgroLink UK</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: {
+            DEFAULT: '#1A6B3A',
+            dark: '#144F2B',
+            light: '#E7F1EC',
+          },
+          navy: {
+            DEFAULT: '#1A3A6B',
+            dark: '#122A4D',
+            light: '#E8ECF3',
+          },
+          lightgrey: '#F4F6F7',
+        },
+      },
+    },
+  };
+</script>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.25.6/babel.min.js"></script>
+
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #F4F6F7; }
+  .badge-check::before { content: "\2713"; margin-right: 6px; font-weight: 700; }
+</style>
+</head>
+<body class="bg-lightgrey text-gray-800">
+
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+
+const { useState, useEffect, useContext, createContext } = React;
+
+/* ---------------------------------------------------------
+   Simple hash-based router (no build step, no react-router)
+   Routes may carry an id segment, e.g. #/worker-profile/priya-kaur
+--------------------------------------------------------- */
+function useHashRoute() {
+  const getRoute = () => window.location.hash.replace('#', '') || '/';
+  const [route, setRoute] = useState(getRoute());
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(getRoute());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  return route;
+}
+
+function navigate(path) {
+  window.location.hash = path;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function parseRoute(route) {
+  const segments = route.split('/').filter(Boolean);
+  const base = segments.length === 0 ? '/' : '/' + segments[0];
+  const id = segments[1];
+  return { base, id };
+}
+
+/* ---------------------------------------------------------
+   Role context — persisted to localStorage so the chosen
+   role (Landowner / Worker) survives across navigation
+--------------------------------------------------------- */
+const RoleContext = createContext({ role: null, setRole: () => {} });
+
+const ROLE_STORAGE_KEY = 'agrolink_role';
+
+function readStoredRole() {
+  try {
+    const stored = localStorage.getItem(ROLE_STORAGE_KEY);
+    return stored === 'landowner' || stored === 'worker' ? stored : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeStoredRole(role) {
+  try {
+    if (role) localStorage.setItem(ROLE_STORAGE_KEY, role);
+    else localStorage.removeItem(ROLE_STORAGE_KEY);
+  } catch (e) {
+    /* localStorage unavailable — role still works for this session via state */
+  }
+}
+
+/* ---------------------------------------------------------
+   Sample data
+--------------------------------------------------------- */
+const SELF_WORKER_ID = 'arjun-singh';
+const SELF_FARM_ID = 'green-valley-farm';
+
+const WORKERS = [
+  {
+    id: 'arjun-singh',
+    initials: 'AS',
+    name: 'Arjun Singh',
+    degree: 'BSc Agronomy',
+    university: 'Punjab Agricultural University',
+    gradYear: 2023,
+    cropExperience: ['Wheat', 'Vegetables', 'Irrigation'],
+    skills: ['Soil Science', 'Agrochemicals', 'Machinery Operation'],
+    availability: 'April 2026 – October 2026',
+    english: 'Conversational',
+    englishDesc: 'Able to communicate confidently on-site with supervisors and teams.',
+    match: 94,
+  },
+  {
+    id: 'priya-kaur',
+    initials: 'PK',
+    name: 'Priya Kaur',
+    degree: 'BSc Horticulture',
+    university: 'Guru Angad Dev Veterinary University',
+    gradYear: 2022,
+    cropExperience: ['Salad Crops', 'Greenhouse', 'Field Vegetables'],
+    skills: ['Crop Protection', 'Greenhouse Management', 'Irrigation'],
+    availability: 'May 2026 – September 2026',
+    english: 'Fluent',
+    englishDesc: 'Fluent in spoken and written English, experienced liaising with UK supervisors.',
+    match: 87,
+  },
+  {
+    id: 'ravinder-kumar',
+    initials: 'RK',
+    name: 'Ravinder Kumar',
+    degree: 'BSc Agriculture',
+    university: 'Chaudhary Charan Singh University',
+    gradYear: 2021,
+    cropExperience: ['Tractor Operation', 'Irrigation', 'Crop Protection'],
+    skills: ['Machinery Operation', 'Soil Science', 'Pesticide Application'],
+    availability: 'April 2026 – October 2026',
+    english: 'Conversational',
+    englishDesc: 'Comfortable with day-to-day workplace conversation and instructions.',
+    match: 82,
+  },
+  {
+    id: 'meera-patel',
+    initials: 'MP',
+    name: 'Meera Patel',
+    degree: 'BSc Agricultural Sciences',
+    university: 'Anand Agricultural University',
+    gradYear: 2023,
+    cropExperience: ['Vegetables', 'Soil Science', 'Irrigation'],
+    skills: ['Soil Testing', 'Organic Farming', 'Machinery Operation'],
+    availability: 'April 2026 – August 2026',
+    english: 'Conversational',
+    englishDesc: 'Confident conversational English from coursework and prior internships.',
+    match: 78,
+  },
+];
+
+const FARMS = [
+  {
+    id: 'green-valley-farm',
+    initials: 'GV',
+    name: 'Green Valley Farm',
+    location: 'Lincolnshire, East of England',
+    acres: 250,
+    cropTypeSummary: 'Field vegetables and salad crops',
+    cropsGrown: ['Field Vegetables', 'Salad Crops', 'Lettuce', 'Spinach'],
+    skillsRequired: ['Grade 4–5 Workers', 'Tractor Operation', 'Irrigation'],
+    contractDuration: 'May 2026 – October 2026',
+    workersNeeded: 8,
+    accommodation: true,
+    match: 92,
+  },
+  {
+    id: 'kent-berry-farm',
+    initials: 'KB',
+    name: 'Kent Berry Farm',
+    location: 'Kent, South East England',
+    acres: 120,
+    cropTypeSummary: 'Soft fruit and berries',
+    cropsGrown: ['Strawberries', 'Raspberries', 'Blackberries'],
+    skillsRequired: ['Grade 3–4 Workers', 'Hand Picking', 'Polytunnel Maintenance'],
+    contractDuration: 'June 2026 – September 2026',
+    workersNeeded: 12,
+    accommodation: true,
+    match: 85,
+  },
+  {
+    id: 'yorkshire-root-vegetables',
+    initials: 'YR',
+    name: 'Yorkshire Root Vegetables',
+    location: 'North Yorkshire, Yorkshire and the Humber',
+    acres: 400,
+    cropTypeSummary: 'Root vegetables',
+    cropsGrown: ['Potatoes', 'Carrots', 'Parsnips', 'Swede'],
+    skillsRequired: ['Grade 4–5 Workers', 'Tractor Operation', 'Harvesting Machinery'],
+    contractDuration: 'September 2026 – February 2027',
+    workersNeeded: 6,
+    accommodation: false,
+    match: 79,
+  },
+];
+
+const WORKER_FILTER_GROUPS = [
+  {
+    title: 'Crop Experience',
+    options: [
+      { label: 'Wheat', defaultChecked: true },
+      { label: 'Vegetables', defaultChecked: true },
+      { label: 'Salad Crops', defaultChecked: false },
+      { label: 'Irrigation', defaultChecked: true },
+    ],
+  },
+  {
+    title: 'Skill Grade',
+    options: [
+      { label: 'Grade 3', defaultChecked: false },
+      { label: 'Grade 4', defaultChecked: true },
+      { label: 'Grade 5', defaultChecked: true },
+    ],
+  },
+  {
+    title: 'Availability',
+    options: [
+      { label: 'April 2026', defaultChecked: true },
+      { label: 'May 2026', defaultChecked: true },
+      { label: 'September 2026', defaultChecked: false },
+      { label: 'October 2026', defaultChecked: true },
+    ],
+  },
+  {
+    title: 'English Level',
+    options: [
+      { label: 'Basic', defaultChecked: false },
+      { label: 'Conversational', defaultChecked: true },
+      { label: 'Fluent', defaultChecked: false },
+    ],
+  },
+];
+
+const FARM_FILTER_GROUPS = [
+  {
+    title: 'Crop Type',
+    options: [
+      { label: 'Field Vegetables', defaultChecked: true },
+      { label: 'Salad Crops', defaultChecked: true },
+      { label: 'Soft Fruit', defaultChecked: false },
+      { label: 'Root Vegetables', defaultChecked: false },
+    ],
+  },
+  {
+    title: 'Contract Duration',
+    options: [
+      { label: 'Spring (Mar–May)', defaultChecked: false },
+      { label: 'Summer (Jun–Aug)', defaultChecked: true },
+      { label: 'Autumn (Sep–Nov)', defaultChecked: false },
+    ],
+  },
+  {
+    title: 'Workers Needed',
+    options: [
+      { label: 'Under 10', defaultChecked: true },
+      { label: '10 or more', defaultChecked: false },
+    ],
+  },
+  {
+    title: 'Accommodation',
+    options: [{ label: 'Accommodation Provided', defaultChecked: true }],
+  },
+];
+
+// Landowner-initiated conversation — shown when a landowner clicks "Send Message" from a worker profile.
+const LANDOWNER_INITIATED_MESSAGES = [
+  { from: 'farm', text: "Hi Arjun, we reviewed your profile and think you'd be a great fit for our field vegetable team this season. Are you available from May?", time: '09:12' },
+  { from: 'worker', text: "Hello, thank you for reaching out. Yes, I'm available from 1st May through to the end of October 2026.", time: '09:20' },
+  { from: 'farm', text: "That works well with our contract dates. The role involves irrigation management and some tractor work. Would that suit your experience?", time: '09:24' },
+  { from: 'worker', text: "Yes, I have hands-on experience with irrigation systems and machinery operation from my studies and fieldwork in Punjab.", time: '09:31' },
+  { from: 'farm', text: "Great, we'd like to move forward. I'll upload the contract here for you to review and sign on-platform.", time: '09:35' },
+];
+
+// Worker-initiated conversation — shown when a worker clicks "Contact Farm" from a farm profile.
+const WORKER_INITIATED_MESSAGES = [
+  { from: 'worker', text: "Hello, I came across Green Valley Farm on AgroLink UK. I have a BSc in Agronomy and three years of hands-on experience in field vegetables and irrigation. I am available from May through October 2026 and would be very interested in the seasonal role you have listed.", time: '09:10' },
+  { from: 'farm', text: "Thank you for reaching out, Arjun. Your profile looks very relevant — we are looking for someone with exactly that experience in irrigation and field vegetables. Could you tell us more about your tractor operation experience?", time: '09:18' },
+  { from: 'worker', text: "Yes, I operated John Deere tractors regularly during my university fieldwork and on my family farm in Punjab. I am also certified in pesticide application.", time: '09:25' },
+  { from: 'farm', text: "That is very helpful, thank you. We would like to proceed — I will upload the fixed-term casual contract here for you to review and sign on-platform.", time: '09:32' },
+  { from: 'worker', text: "Understood, I will review and sign it as soon as it is uploaded. Thank you.", time: '09:40' },
+];
+
+/* ---------------------------------------------------------
+   Shared UI: Nav + Footer
+--------------------------------------------------------- */
+function NavBar({ route }) {
+  const { role, setRole } = useContext(RoleContext);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const { base } = parseRoute(route);
+
+  const listingsLabel = role === 'landowner' ? 'Available Workers' : 'Available Farm Opportunities';
+  const roleLabel = role === 'landowner' ? 'Welcome, Landowner' : role === 'worker' ? 'Welcome, Worker' : null;
+  const profileInitials = role === 'landowner' ? 'GV' : role === 'worker' ? 'AS' : null;
+
+  const links = role
+    ? [
+        { path: '/', label: 'Home' },
+        { path: '/listings', label: listingsLabel },
+        { path: '/messaging', label: 'Messaging' },
+      ]
+    : [{ path: '/', label: 'Home' }];
+
+  const goOwnProfile = () => {
+    if (role === 'landowner') navigate(`/landowner-profile/${SELF_FARM_ID}`);
+    else if (role === 'worker') navigate(`/worker-profile/${SELF_WORKER_ID}`);
+    setMobileOpen(false);
+  };
+
+  const switchRole = () => {
+    setRole(null);
+    navigate('/');
+    setMobileOpen(false);
+  };
+
+  return (
+    <header className="bg-white shadow-sm sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <a
+            href="#/"
+            className="text-2xl font-extrabold tracking-tight flex-shrink-0"
+            style={{ color: '#1A6B3A' }}
+          >
+            AgroLink <span className="text-navy">UK</span>
+          </a>
+
+          <nav className="hidden md:flex items-center gap-1">
+            {links.map((link) => {
+              const active = base === link.path;
+              return (
+                <a
+                  key={link.path}
+                  href={`#${link.path}`}
+                  className={
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap " +
+                    (active
+                      ? "bg-primary-light text-primary"
+                      : "text-gray-600 hover:text-primary hover:bg-primary-light")
+                  }
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+
+            {role && (
+              <div className="flex items-center gap-3 ml-3 pl-3 border-l border-gray-200">
+                <span className="text-xs font-semibold text-navy bg-navy-light px-3 py-1.5 rounded-full whitespace-nowrap">
+                  {roleLabel}
+                </span>
+                <button
+                  onClick={goOwnProfile}
+                  title="My Profile"
+                  className="w-9 h-9 rounded-full bg-navy text-white flex items-center justify-center text-xs font-bold hover:bg-navy-dark transition-colors flex-shrink-0"
+                >
+                  {profileInitials}
+                </button>
+                <button
+                  onClick={switchRole}
+                  className="text-xs font-medium text-gray-500 hover:text-primary underline whitespace-nowrap"
+                >
+                  Switch Role
+                </button>
+              </div>
+            )}
+          </nav>
+
+          <button
+            className="md:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100"
+            onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {mobileOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {mobileOpen && (
+          <nav className="md:hidden pb-4 flex flex-col gap-1">
+            {links.map((link) => {
+              const active = base === link.path;
+              return (
+                <a
+                  key={link.path}
+                  href={`#${link.path}`}
+                  onClick={() => setMobileOpen(false)}
+                  className={
+                    "px-3 py-2 rounded-md text-sm font-medium transition-colors " +
+                    (active
+                      ? "bg-primary-light text-primary"
+                      : "text-gray-600 hover:text-primary hover:bg-primary-light")
+                  }
+                >
+                  {link.label}
+                </a>
+              );
+            })}
+
+            {role && (
+              <div className="flex flex-col gap-2 mt-2 pt-3 border-t border-gray-100">
+                <span className="text-xs font-semibold text-navy bg-navy-light px-3 py-1.5 rounded-full w-fit">
+                  {roleLabel}
+                </span>
+                <button
+                  onClick={goOwnProfile}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-primary hover:bg-primary-light w-fit"
+                >
+                  <span className="w-6 h-6 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold">
+                    {profileInitials}
+                  </span>
+                  My Profile
+                </button>
+                <button
+                  onClick={switchRole}
+                  className="text-xs font-medium text-gray-500 hover:text-primary underline text-left px-3"
+                >
+                  Switch Role
+                </button>
+              </div>
+            )}
+          </nav>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="bg-navy text-white mt-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <p className="text-center text-sm text-navy-light opacity-90 leading-relaxed">
+          AgroLink UK &nbsp;|&nbsp; Employment Agency registered under the Employment Agencies Act 1973 &nbsp;|&nbsp; ICO Registered &nbsp;|&nbsp; GDPR Compliant
+        </p>
+      </div>
+    </footer>
+  );
+}
+
+function PageShell({ children }) {
+  return <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">{children}</main>;
+}
+
+/* ---------------------------------------------------------
+   Reusable bits
+--------------------------------------------------------- */
+function VerifiedBadge() {
+  return (
+    <span className="badge-check inline-flex items-center bg-primary text-white text-xs font-semibold px-3 py-1.5 rounded-full">
+      AgroLink Verified
+    </span>
+  );
+}
+
+function SectionCard({ title, children, className = "" }) {
+  return (
+    <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
+      <h3 className="text-navy font-semibold text-lg mb-3">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Pill({ children }) {
+  return (
+    <span className="inline-block bg-primary-light text-primary text-xs font-medium px-3 py-1 rounded-full mr-2 mb-2">
+      {children}
+    </span>
+  );
+}
+
+function PrimaryButton({ children, onClick, className = "" }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-lg shadow-sm transition-colors ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SecondaryButton({ children, onClick, className = "" }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`border-2 border-navy text-navy hover:bg-navy hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors ${className}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function MatchBar({ value }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full bg-primary rounded-full" style={{ width: `${value}%` }} />
+      </div>
+      <span className="text-primary font-bold text-sm whitespace-nowrap">{value}% match</span>
+    </div>
+  );
+}
+
+function FilterGroup({ title, children }) {
+  return (
+    <div className="mb-6">
+      <h4 className="text-navy font-semibold text-sm mb-2">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
+function CheckboxRow({ label, defaultChecked = false }) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-gray-600 mb-1.5 cursor-pointer">
+      <input type="checkbox" defaultChecked={defaultChecked} className="rounded border-gray-300 text-primary focus:ring-primary" />
+      {label}
+    </label>
+  );
+}
+
+function FilterSidebar({ groups }) {
+  return (
+    <aside className="lg:col-span-1">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 lg:sticky lg:top-20">
+        <h3 className="font-semibold text-navy mb-4">Filters</h3>
+        {groups.map((g) => (
+          <FilterGroup key={g.title} title={g.title}>
+            {g.options.map((o) => (
+              <CheckboxRow key={o.label} label={o.label} defaultChecked={o.defaultChecked} />
+            ))}
+          </FilterGroup>
+        ))}
+        <button
+          onClick={() => {
+            const results = document.getElementById('results');
+            if (results) results.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="w-full bg-primary-light text-primary font-semibold text-sm py-2 rounded-lg hover:bg-primary hover:text-white transition-colors"
+        >
+          Apply Filters
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/* ---------------------------------------------------------
+   PAGE 1 — Landing Page
+--------------------------------------------------------- */
+function LandingPage() {
+  const { setRole } = useContext(RoleContext);
+
+  const features = [
+    {
+      title: 'Verified Profiles',
+      desc: 'Every worker and every farm on AgroLink UK is identity-checked and document-verified before they can connect.',
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
+      title: 'Skill-Based Matching',
+      desc: 'Our matching engine pairs graduates and farms on crop experience, qualifications, availability and skill grade.',
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+    },
+    {
+      title: 'GDPR-Compliant Communication',
+      desc: 'All messages and documents stay on-platform. Personal contact details are never exposed to the other party.',
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      ),
+    },
+  ];
+
+  const chooseLandowner = () => {
+    setRole('landowner');
+    navigate('/listings');
+  };
+
+  const chooseWorker = () => {
+    setRole('worker');
+    navigate('/listings');
+  };
+
+  return (
+    <PageShell>
+      {/* Hero */}
+      <section className="text-center py-10 md:py-16">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-primary mb-4">
+          AgroLink UK
+        </h1>
+        <p className="text-lg sm:text-xl text-navy font-medium max-w-2xl mx-auto mb-6">
+          Bridging Indian Agricultural Graduates with UK Farmland
+        </p>
+        <p className="text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
+          AgroLink UK is a two-sided marketplace that connects skilled, verified agriculture
+          graduates from India with UK landowners who need seasonal and skilled farm labour.
+          Landowners post their farm's requirements, workers build a verified skills profile,
+          and our matching engine brings the right people together — all through a secure,
+          GDPR-compliant platform.
+        </p>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <PrimaryButton onClick={chooseLandowner} className="text-lg px-10 py-4 w-full sm:w-auto">
+            I am a Landowner
+          </PrimaryButton>
+          <SecondaryButton onClick={chooseWorker} className="text-lg px-10 py-4 w-full sm:w-auto">
+            I am a Worker
+          </SecondaryButton>
+        </div>
+      </section>
+
+      {/* Feature highlights */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-8">
+        {features.map((f) => (
+          <div key={f.title} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+            <div className="w-14 h-14 rounded-full bg-primary-light text-primary flex items-center justify-center mx-auto mb-4">
+              {f.icon}
+            </div>
+            <h3 className="font-semibold text-navy text-lg mb-2">{f.title}</h3>
+            <p className="text-sm text-gray-600 leading-relaxed">{f.desc}</p>
+          </div>
+        ))}
+      </section>
+    </PageShell>
+  );
+}
+
+/* ---------------------------------------------------------
+   PAGE 2 — Worker Profile
+   Shown to a landowner browsing a worker (Request to Hire +
+   Send Message appear), or to a worker viewing their own
+   profile via the nav profile icon (no action buttons).
+--------------------------------------------------------- */
+function WorkerProfilePage({ workerId }) {
+  const { role } = useContext(RoleContext);
+  const worker = WORKERS.find((w) => w.id === workerId) || WORKERS.find((w) => w.id === SELF_WORKER_ID);
+  const showActions = role === 'landowner';
+  const isOwn = role === 'worker' && worker.id === SELF_WORKER_ID;
+
+  return (
+    <PageShell>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-navy text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
+              {worker.initials}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-navy">{worker.name}</h1>
+              <p className="text-gray-600">{worker.degree} — {worker.university}, {worker.gradYear}</p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <VerifiedBadge />
+                {isOwn && (
+                  <span className="text-xs text-gray-400 italic">This is your profile</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {showActions && (
+            <div className="flex flex-col sm:flex-row gap-3">
+              <PrimaryButton onClick={() => navigate('/messaging')}>Request to Hire</PrimaryButton>
+              <SecondaryButton onClick={() => navigate('/messaging')}>Send Message</SecondaryButton>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SectionCard title="Education">
+          <p className="text-gray-700 font-medium">{worker.degree}</p>
+          <p className="text-gray-600 text-sm">{worker.university} — Class of {worker.gradYear}</p>
+        </SectionCard>
+
+        <SectionCard title="Availability">
+          <p className="text-gray-700 font-medium">{worker.availability}</p>
+          <p className="text-gray-600 text-sm">Available for seasonal UK contracts</p>
+        </SectionCard>
+
+        <SectionCard title="Crop Experience">
+          {worker.cropExperience.map((c) => <Pill key={c}>{c}</Pill>)}
+        </SectionCard>
+
+        <SectionCard title="Skills">
+          {worker.skills.map((s) => <Pill key={s}>{s}</Pill>)}
+        </SectionCard>
+
+        <SectionCard title="English Proficiency" className="md:col-span-2">
+          <p className="text-gray-700 font-medium">{worker.english}</p>
+          <p className="text-gray-600 text-sm">{worker.englishDesc}</p>
+        </SectionCard>
+      </div>
+    </PageShell>
+  );
+}
+
+/* ---------------------------------------------------------
+   PAGE 3 — Landowner Farm Profile
+   Shown to a worker browsing a farm (Contact Farm appears),
+   or to a landowner viewing their own farm via the nav
+   profile icon (no Contact Farm button).
+--------------------------------------------------------- */
+function LandownerProfilePage({ farmId }) {
+  const { role } = useContext(RoleContext);
+  const farm = FARMS.find((f) => f.id === farmId) || FARMS.find((f) => f.id === SELF_FARM_ID);
+  const showContact = role === 'worker';
+  const isOwn = role === 'landowner' && farm.id === SELF_FARM_ID;
+
+  return (
+    <PageShell>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
+              {farm.initials}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-navy">{farm.name}</h1>
+              <p className="text-gray-600">{farm.location}</p>
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <VerifiedBadge />
+                {isOwn && (
+                  <span className="text-xs text-gray-400 italic">This is your profile</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {showContact && <PrimaryButton onClick={() => navigate('/messaging')}>Contact Farm</PrimaryButton>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <SectionCard title="Farm Details">
+          <p className="text-gray-700 font-medium">{farm.acres} acres</p>
+          <p className="text-gray-600 text-sm">Growing {farm.cropTypeSummary.toLowerCase()}</p>
+        </SectionCard>
+
+        <SectionCard title="Contract Duration">
+          <p className="text-gray-700 font-medium">{farm.contractDuration}</p>
+        </SectionCard>
+
+        <SectionCard title="Crops Grown">
+          {farm.cropsGrown.map((c) => <Pill key={c}>{c}</Pill>)}
+        </SectionCard>
+
+        <SectionCard title="Skills Required">
+          {farm.skillsRequired.map((s) => <Pill key={s}>{s}</Pill>)}
+        </SectionCard>
+
+        <SectionCard title="Workers Needed">
+          <p className="text-3xl font-bold text-primary">{farm.workersNeeded}</p>
+        </SectionCard>
+
+        <SectionCard title="Accommodation Available">
+          <p className="text-gray-700 font-medium">
+            {farm.accommodation ? 'Yes — on-site accommodation provided' : 'No'}
+          </p>
+        </SectionCard>
+      </div>
+    </PageShell>
+  );
+}
+
+/* ---------------------------------------------------------
+   PAGE 4 — Listings
+   Landowner role -> "Available Workers" (browse WORKERS)
+   Worker role    -> "Available Farm Opportunities" (browse FARMS)
+--------------------------------------------------------- */
+function WorkerListingCard({ worker }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex gap-4">
+          <div className="w-12 h-12 rounded-full bg-navy text-white flex items-center justify-center font-bold flex-shrink-0">
+            {worker.initials}
+          </div>
+          <div>
+            <h3 className="font-bold text-navy text-lg">{worker.name}</h3>
+            <p className="text-sm text-gray-600">{worker.degree}, {worker.university} ({worker.gradYear})</p>
+            <div className="mt-2">{worker.cropExperience.map((c) => <Pill key={c}>{c}</Pill>)}</div>
+            <p className="text-sm text-gray-500 mt-1">Availability: {worker.availability}</p>
+          </div>
+        </div>
+        <div className="w-full sm:w-40 flex-shrink-0">
+          <MatchBar value={worker.match} />
+        </div>
+      </div>
+      <div className="mt-4">
+        <PrimaryButton onClick={() => navigate(`/worker-profile/${worker.id}`)} className="text-sm px-5 py-2.5">
+          View Profile
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+function FarmListingCard({ farm }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div className="flex gap-4">
+          <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
+            {farm.initials}
+          </div>
+          <div>
+            <h3 className="font-bold text-navy text-lg">{farm.name}</h3>
+            <p className="text-sm text-gray-600">{farm.location}</p>
+            <p className="text-sm text-gray-600 mt-1">Crop type: {farm.cropTypeSummary}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Workers needed: {farm.workersNeeded} &middot; Contract: {farm.contractDuration}
+            </p>
+          </div>
+        </div>
+        <div className="w-full sm:w-40 flex-shrink-0">
+          <MatchBar value={farm.match} />
+        </div>
+      </div>
+      <div className="mt-4">
+        <PrimaryButton onClick={() => navigate(`/landowner-profile/${farm.id}`)} className="text-sm px-5 py-2.5">
+          View Farm
+        </PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+function ListingsPage() {
+  const { role } = useContext(RoleContext);
+  const isLandowner = role === 'landowner';
+  const title = isLandowner ? 'Available Workers' : 'Available Farm Opportunities';
+
+  return (
+    <PageShell>
+      <h1 className="text-2xl sm:text-3xl font-bold text-navy mb-8">{title}</h1>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <FilterSidebar groups={isLandowner ? WORKER_FILTER_GROUPS : FARM_FILTER_GROUPS} />
+
+        <div id="results" className="lg:col-span-3 flex flex-col gap-5">
+          {isLandowner
+            ? WORKERS.map((w) => <WorkerListingCard key={w.id} worker={w} />)
+            : FARMS.map((f) => <FarmListingCard key={f.id} farm={f} />)}
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+/* ---------------------------------------------------------
+   PAGE 5 — In-Platform Messaging
+   Bubble alignment and header flip depending on which role
+   is the "current user" so the conversation always reads
+   from that user's point of view.
+--------------------------------------------------------- */
+function MessageBubble({ text, time, mine }) {
+  return (
+    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[80%] sm:max-w-[65%] rounded-2xl px-4 py-3 ${
+        mine ? 'bg-primary text-white rounded-tr-sm' : 'bg-white border border-gray-100 text-gray-700 rounded-tl-sm'
+      }`}>
+        <p className="text-sm leading-relaxed">{text}</p>
+        <p className={`text-[11px] mt-1.5 ${mine ? 'text-primary-light' : 'text-gray-400'}`}>{time}</p>
+      </div>
+    </div>
+  );
+}
+
+function MessagingPage() {
+  const { role } = useContext(RoleContext);
+  const [uploaded, setUploaded] = useState(false);
+  const isLandowner = role === 'landowner';
+  const messages = isLandowner ? LANDOWNER_INITIATED_MESSAGES : WORKER_INITIATED_MESSAGES;
+
+  const selfLabel = isLandowner ? 'Green Valley Farm' : 'Arjun Singh';
+  const counterpartLabel = isLandowner ? 'Arjun Singh' : 'Green Valley Farm';
+  const selfInitials = isLandowner ? 'GV' : 'AS';
+  const counterpartInitials = isLandowner ? 'AS' : 'GV';
+  const leftAvatarClasses = isLandowner ? 'bg-primary text-white' : 'bg-white text-navy';
+  const rightAvatarClasses = isLandowner ? 'bg-white text-navy' : 'bg-primary text-white';
+
+  return (
+    <PageShell>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {/* Conversation header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-navy text-white">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${leftAvatarClasses}`}>
+              {selfInitials}
+            </div>
+            <div>
+              <p className="font-semibold leading-tight">{selfLabel}</p>
+              <p className="text-xs text-navy-light opacity-80">Conversation with {counterpartLabel}</p>
+            </div>
+          </div>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${rightAvatarClasses}`}>
+            {counterpartInitials}
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="p-6 flex flex-col gap-4 bg-lightgrey">
+          {messages.map((m, i) => (
+            <MessageBubble
+              key={i}
+              text={m.text}
+              time={m.time}
+              mine={isLandowner ? m.from === 'farm' : m.from === 'worker'}
+            />
+          ))}
+        </div>
+
+        {/* Message input (visual only) */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100">
+          <input
+            type="text"
+            disabled
+            placeholder="Type a message..."
+            className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm bg-gray-50 text-gray-400"
+          />
+          <PrimaryButton className="text-sm px-5 py-2.5">Send</PrimaryButton>
+        </div>
+      </div>
+
+      {/* Contract Documents */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+        <h3 className="text-navy font-semibold text-lg mb-4">Contract Documents</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border border-dashed border-gray-300 rounded-lg p-5 text-center">
+            <p className="text-sm text-gray-500 mb-3">Landowner — Green Valley Farm</p>
+            <PrimaryButton onClick={() => setUploaded(true)} className="w-full">
+              Upload Contract
+            </PrimaryButton>
+            {uploaded && (
+              <p className="text-xs text-primary mt-2 font-medium">seasonal_contract_2026.pdf uploaded</p>
+            )}
+          </div>
+          <div className="border border-dashed border-gray-300 rounded-lg p-5 text-center">
+            <p className="text-sm text-gray-500 mb-3">Worker — Arjun Singh</p>
+            <SecondaryButton className="w-full">Download and Sign</SecondaryButton>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2 mt-5 bg-primary-light rounded-lg px-4 py-3">
+          <svg className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <p className="text-xs text-primary-dark leading-relaxed">
+            Contact details are protected — all communication stays on-platform.
+          </p>
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+/* ---------------------------------------------------------
+   App root
+--------------------------------------------------------- */
+function App() {
+  const route = useHashRoute();
+  const [role, setRoleState] = useState(readStoredRole);
+
+  const setRole = (r) => {
+    setRoleState(r);
+    writeStoredRole(r);
+  };
+
+  const { base, id } = parseRoute(route);
+
+  // Guard: pages other than Landing require a role to be selected.
+  useEffect(() => {
+    if (!role && base !== '/') {
+      navigate('/');
+    }
+  }, [role, base]);
+
+  let content;
+  if (!role && base !== '/') {
+    content = null;
+  } else {
+    switch (base) {
+      case '/listings':
+        content = <ListingsPage />;
+        break;
+      case '/worker-profile':
+        content = <WorkerProfilePage workerId={id || SELF_WORKER_ID} />;
+        break;
+      case '/landowner-profile':
+        content = <LandownerProfilePage farmId={id || SELF_FARM_ID} />;
+        break;
+      case '/messaging':
+        content = <MessagingPage />;
+        break;
+      default:
+        content = <LandingPage />;
+    }
+  }
+
+  return (
+    <RoleContext.Provider value={{ role, setRole }}>
+      <div className="min-h-screen flex flex-col">
+        <NavBar route={route} />
+        {content}
+        <Footer />
+      </div>
+    </RoleContext.Provider>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+
+</script>
+</body>
+</html>
