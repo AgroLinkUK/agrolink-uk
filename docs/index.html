@@ -111,6 +111,7 @@ const WORKERS = [
     id: 'arjun-singh',
     initials: 'AS',
     name: 'Arjun Singh',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ArjunSingh&backgroundColor=b6e3f4',
     degree: 'BSc Agronomy',
     university: 'Punjab Agricultural University',
     gradYear: 2023,
@@ -125,6 +126,7 @@ const WORKERS = [
     id: 'priya-kaur',
     initials: 'PK',
     name: 'Priya Kaur',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=PriyaSharma&backgroundColor=ffd5dc',
     degree: 'BSc Horticulture',
     university: 'Guru Angad Dev Veterinary University',
     gradYear: 2022,
@@ -139,6 +141,7 @@ const WORKERS = [
     id: 'ravinder-kumar',
     initials: 'RK',
     name: 'Ravinder Kumar',
+    avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=RajeshKumar&backgroundColor=d1d4f9',
     degree: 'BSc Agriculture',
     university: 'Chaudhary Charan Singh University',
     gradYear: 2021,
@@ -170,6 +173,7 @@ const FARMS = [
     id: 'green-valley-farm',
     initials: 'GV',
     name: 'Green Valley Farm',
+    bannerUrl: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&q=80',
     location: 'Lincolnshire, East of England',
     acres: 250,
     cropTypeSummary: 'Field vegetables and salad crops',
@@ -184,6 +188,7 @@ const FARMS = [
     id: 'kent-berry-farm',
     initials: 'KB',
     name: 'Kent Berry Farm',
+    bannerUrl: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=800&q=80',
     location: 'Kent, South East England',
     acres: 120,
     cropTypeSummary: 'Soft fruit and berries',
@@ -198,6 +203,7 @@ const FARMS = [
     id: 'yorkshire-root-vegetables',
     initials: 'YR',
     name: 'Yorkshire Root Vegetables',
+    bannerUrl: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80',
     location: 'North Yorkshire, Yorkshire and the Humber',
     acres: 400,
     cropTypeSummary: 'Root vegetables',
@@ -473,6 +479,28 @@ function VerifiedBadge() {
   );
 }
 
+function WorkerAvatar({ worker, size }) {
+  const dimension = size === 'lg' ? '120px' : '80px';
+  if (worker.avatarUrl) {
+    return (
+      <img
+        src={worker.avatarUrl}
+        alt={worker.name}
+        className="rounded-full object-cover flex-shrink-0 bg-primary-light"
+        style={{ width: dimension, height: dimension }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full bg-navy text-white flex items-center justify-center font-bold flex-shrink-0"
+      style={{ width: dimension, height: dimension, fontSize: size === 'lg' ? '2rem' : '1.25rem' }}
+    >
+      {worker.initials}
+    </div>
+  );
+}
+
 function SectionCard({ title, children, className = "" }) {
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
@@ -674,9 +702,7 @@ function WorkerProfilePage({ workerId }) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-navy text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
-              {worker.initials}
-            </div>
+            <WorkerAvatar worker={worker} size="lg" />
             <div>
               <h1 className="text-2xl font-bold text-navy">{worker.name}</h1>
               <p className="text-gray-600">{worker.degree} — {worker.university}, {worker.gradYear}</p>
@@ -739,24 +765,29 @@ function LandownerProfilePage({ farmId }) {
 
   return (
     <PageShell>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
-              {farm.initials}
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-navy">{farm.name}</h1>
-              <p className="text-gray-600">{farm.location}</p>
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <VerifiedBadge />
-                {isOwn && (
-                  <span className="text-xs text-gray-400 italic">This is your profile</span>
-                )}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        {farm.bannerUrl && (
+          <img src={farm.bannerUrl} alt={farm.name} className="w-full h-[200px] object-cover" />
+        )}
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold flex-shrink-0">
+                {farm.initials}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-navy">{farm.name}</h1>
+                <p className="text-gray-600">{farm.location}</p>
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
+                  <VerifiedBadge />
+                  {isOwn && (
+                    <span className="text-xs text-gray-400 italic">This is your profile</span>
+                  )}
+                </div>
               </div>
             </div>
+            {showContact && <PrimaryButton onClick={() => navigate('/messaging')}>Contact Farm</PrimaryButton>}
           </div>
-          {showContact && <PrimaryButton onClick={() => navigate('/messaging')}>Contact Farm</PrimaryButton>}
         </div>
       </div>
 
@@ -802,9 +833,7 @@ function WorkerListingCard({ worker }) {
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex gap-4">
-          <div className="w-12 h-12 rounded-full bg-navy text-white flex items-center justify-center font-bold flex-shrink-0">
-            {worker.initials}
-          </div>
+          <WorkerAvatar worker={worker} size="sm" />
           <div>
             <h3 className="font-bold text-navy text-lg">{worker.name}</h3>
             <p className="text-sm text-gray-600">{worker.degree}, {worker.university} ({worker.gradYear})</p>
@@ -827,29 +856,34 @@ function WorkerListingCard({ worker }) {
 
 function FarmListingCard({ farm }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex gap-4">
-          <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
-            {farm.initials}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {farm.bannerUrl && (
+        <img src={farm.bannerUrl} alt={farm.name} className="w-full h-[120px] object-cover" />
+      )}
+      <div className="p-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex gap-4">
+            <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold flex-shrink-0">
+              {farm.initials}
+            </div>
+            <div>
+              <h3 className="font-bold text-navy text-lg">{farm.name}</h3>
+              <p className="text-sm text-gray-600">{farm.location}</p>
+              <p className="text-sm text-gray-600 mt-1">Crop type: {farm.cropTypeSummary}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Workers needed: {farm.workersNeeded} &middot; Contract: {farm.contractDuration}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-navy text-lg">{farm.name}</h3>
-            <p className="text-sm text-gray-600">{farm.location}</p>
-            <p className="text-sm text-gray-600 mt-1">Crop type: {farm.cropTypeSummary}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Workers needed: {farm.workersNeeded} &middot; Contract: {farm.contractDuration}
-            </p>
+          <div className="w-full sm:w-40 flex-shrink-0">
+            <MatchBar value={farm.match} />
           </div>
         </div>
-        <div className="w-full sm:w-40 flex-shrink-0">
-          <MatchBar value={farm.match} />
+        <div className="mt-4">
+          <PrimaryButton onClick={() => navigate(`/landowner-profile/${farm.id}`)} className="text-sm px-5 py-2.5">
+            View Farm
+          </PrimaryButton>
         </div>
-      </div>
-      <div className="mt-4">
-        <PrimaryButton onClick={() => navigate(`/landowner-profile/${farm.id}`)} className="text-sm px-5 py-2.5">
-          View Farm
-        </PrimaryButton>
       </div>
     </div>
   );
