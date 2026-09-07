@@ -340,6 +340,7 @@ function NavBar({ route }) {
   const listingsLabel = role === 'landowner' ? 'Available Workers' : 'Available Farm Opportunities';
   const roleLabel = role === 'landowner' ? 'Welcome, Landowner' : role === 'worker' ? 'Welcome, Worker' : null;
   const profileInitials = role === 'landowner' ? 'GV' : role === 'worker' ? 'AS' : null;
+  const profileAvatarUrl = role === 'worker' ? WORKERS.find((w) => w.id === SELF_WORKER_ID)?.avatarUrl : null;
 
   const links = role
     ? [
@@ -399,9 +400,13 @@ function NavBar({ route }) {
                 <button
                   onClick={goOwnProfile}
                   title="My Profile"
-                  className="w-9 h-9 rounded-full bg-navy text-white flex items-center justify-center text-xs font-bold hover:bg-navy-dark transition-colors flex-shrink-0"
+                  className="w-9 h-9 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center text-xs font-bold hover:opacity-90 transition-opacity flex-shrink-0"
                 >
-                  {profileInitials}
+                  {profileAvatarUrl ? (
+                    <img src={profileAvatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    profileInitials
+                  )}
                 </button>
                 <button
                   onClick={switchRole}
@@ -458,8 +463,12 @@ function NavBar({ route }) {
                   onClick={goOwnProfile}
                   className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-primary hover:bg-primary-light w-fit"
                 >
-                  <span className="w-6 h-6 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold">
-                    {profileInitials}
+                  <span className="w-6 h-6 rounded-full overflow-hidden bg-navy text-white flex items-center justify-center text-[10px] font-bold">
+                    {profileAvatarUrl ? (
+                      <img src={profileAvatarUrl} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      profileInitials
+                    )}
                   </span>
                   My Profile
                 </button>
